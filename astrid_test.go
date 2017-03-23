@@ -237,7 +237,7 @@ func test(t *testing.T, name, source string) {
 		return nil
 	}
 
-	matcher := NewMatcher(prog.Imported[ppath].Info)
+	matcher := NewMatcher(prog.Imported[ppath].Info.Uses, prog.Imported[ppath].Info.Defs)
 
 	ast.Inspect(f, func(node ast.Node) bool {
 		ann := annotation(node)

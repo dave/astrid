@@ -10,16 +10,19 @@ import (
 	"go/types"
 )
 
-// NewMatcher returns a new *Matcher with the provided types.Info
-func NewMatcher(info types.Info) *Matcher {
+// NewMatcher returns a new *Matcher with the provided uses and defs (from
+// types.Info)
+func NewMatcher(uses, defs map[*ast.Ident]types.Object) *Matcher {
 	return &Matcher{
-		info: info,
+		uses: uses,
+		defs: defs,
 	}
 }
 
 // Matcher matches ast expressions
 type Matcher struct {
-	info types.Info
+	uses map[*ast.Ident]types.Object
+	defs map[*ast.Ident]types.Object
 }
 
 func boolTrue(v ast.Expr) bool {
@@ -50,10 +53,10 @@ func (m *Matcher) Match(a, b ast.Expr) bool {
 			return true
 		}
 		if bt, ok := b.(*ast.Ident); ok {
-			usea, isusea := m.info.Uses[at]
-			useb, isuseb := m.info.Uses[bt]
-			defa, isdefa := m.info.Defs[at]
-			defb, isdefb := m.info.Defs[bt]
+			usea, isusea := m.uses[at]
+			useb, isuseb := m.uses[bt]
+			defa, isdefa := m.defs[at]
+			defb, isdefb := m.defs[bt]
 			switch {
 			case isusea && isuseb && usea == useb,
 				isdefa && isdefb && defa == defb,

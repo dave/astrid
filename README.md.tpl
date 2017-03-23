@@ -8,6 +8,10 @@ Astrid is a collection of AST utilities for Go
 
 {{ "NewMatcher" | doc }}
 
-### Match
+### Matcher.Match
 
 {{ "Matcher.Match" | doc }}
+
+# Invert
+
+{{ "Invert" | doc }}

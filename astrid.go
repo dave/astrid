@@ -10,8 +10,8 @@ import (
 	"go/types"
 )
 
-// NewMatcher returns a new *Matcher with the provided uses and defs (from
-// types.Info)
+// NewMatcher returns a new *Matcher with the provided Uses and Defs from
+// types.Info
 func NewMatcher(uses, defs map[*ast.Ident]types.Object) *Matcher {
 	return &Matcher{
 		uses: uses,
@@ -189,10 +189,12 @@ func (m *Matcher) MatchSlice(a, b []ast.Expr) bool {
 func Invert(node ast.Expr) ast.Expr {
 	if be, ok := node.(*ast.BinaryExpr); ok && (be.Op == token.NEQ || be.Op == token.EQL || be.Op == token.LSS || be.Op == token.GTR || be.Op == token.LEQ || be.Op == token.GEQ) {
 		/*
-			LSS    // <
-			GTR    // >
-			LEQ      // <=
-			GEQ      // >=
+			EQL: ==
+			NEQ: !=
+			LSS: <
+			GTR: >
+			LEQ: <=
+			GEQ: >=
 		*/
 		var op token.Token
 		switch be.Op {

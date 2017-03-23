@@ -20,6 +20,32 @@ import (
 
 func TestCall(t *testing.T) {
 	multi(t, map[string]string{
+		"function call ellipsis": `package a
+		
+			var f func(...interface{}) bool
+			
+			var a []interface{}
+			
+			var _ = f(a) // *1
+			
+			func foo() {
+				f(a...)
+				f(a) // #1
+			}
+		`,
+		"function call ellipsis 2": `package a
+		
+			var f func(...interface{}) bool
+			
+			var a []interface{}
+			
+			var _ = f(a...) // *1
+			
+			func foo() {
+				f(a)
+				f(a...) // #1
+			}
+		`,
 		"function call": `package a
 		
 			var f func(int, string) bool

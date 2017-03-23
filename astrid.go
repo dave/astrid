@@ -181,3 +181,55 @@ func (m *Matcher) MatchSlice(a, b []ast.Expr) bool {
 	}
 	return true
 }
+
+// Invert returns the inverse of the provided expression.
+func Invert(node ast.Expr) ast.Expr {
+	if be, ok := node.(*ast.BinaryExpr); ok && (be.Op == token.NEQ || be.Op == token.EQL || be.Op == token.LSS || be.Op == token.GTR || be.Op == token.LEQ || be.Op == token.GEQ) {
+		/*
+			LSS    // <
+			GTR    // >
+			LEQ      // <=
+			GEQ      // >=
+		*/
+		var op token.Token
+		switch be.Op {
+		case token.NEQ: //    !=
+			op = token.EQL // ==
+		case token.EQL: //    ==
+			op = token.NEQ // !=
+		case token.LSS: //    <
+			op = token.GEQ // >=
+		case token.GTR: //    >
+			op = token.LEQ // <=
+		case token.LEQ: //    <=
+			op = token.GTR // >
+		case token.GEQ: //    >=
+			op = token.LSS // <
+		}
+		return &ast.BinaryExpr{
+			X:  be.X,
+			Op: op,
+			Y:  be.Y,
+		}
+	} else if un, ok := node.(*ast.UnaryExpr); ok && un.Op == token.NOT {
+		return un.X
+	} else if boolTrue(node) {
+		return ast.NewIdent("false")
+	} else if boolFalse(node) {
+		return ast.NewIdent("true")
+	} else if _, ok := node.(*ast.Ident); ok {
+		return &ast.UnaryExpr{
+			Op: token.NOT,
+			X:  node,
+		}
+	} else if _, ok := node.(*ast.ParenExpr); ok {
+		return &ast.UnaryExpr{
+			Op: token.NOT,
+			X:  node,
+		}
+	}
+	return &ast.UnaryExpr{
+		Op: token.NOT,
+		X:  &ast.ParenExpr{X: node},
+	}
+}

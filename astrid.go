@@ -130,6 +130,7 @@ func (m *Matcher) Match(a, b ast.Expr) bool {
 		}
 		return false
 	case *ast.Ellipsis:
+		// notest
 		if bt, ok := b.(*ast.Ellipsis); ok {
 			return m.Match(at.Elt, bt.Elt)
 		}
@@ -166,6 +167,7 @@ func (m *Matcher) Match(a, b ast.Expr) bool {
 		return false
 	case *ast.BadExpr, *ast.FuncLit, *ast.StructType, *ast.FuncType, *ast.InterfaceType:
 		// can't be compared
+		// notest
 		return false
 	}
 	return false

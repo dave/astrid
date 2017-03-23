@@ -13,10 +13,341 @@ import (
 
 	"go/token"
 
+	"go/types"
+
 	"github.com/dave/patsy/builder"
 	"github.com/dave/patsy/vos"
 	"github.com/pkg/errors"
 )
+
+func TestInvert(t *testing.T) {
+
+	// have to add this to uses and defs in order that Match can match
+	// dummyIdent in "ident" test.
+	dummyObject := types.NewConst(token.NoPos, nil, "", nil, nil)
+	dummyIdent := &ast.Ident{Name: ""}
+	m := NewMatcher(
+		map[*ast.Ident]types.Object{dummyIdent: dummyObject},
+		map[*ast.Ident]types.Object{dummyIdent: dummyObject},
+	)
+
+	tests := map[string]struct {
+		Input    ast.Expr
+		Expected ast.Expr
+	}{
+		"bool true":  {ast.NewIdent("true"), ast.NewIdent("false")},
+		"bool false": {ast.NewIdent("false"), ast.NewIdent("true")},
+		"binary ==": {
+			&ast.BinaryExpr{
+				X:  &ast.BasicLit{Kind: token.INT, Value: "1"},
+				Y:  &ast.BasicLit{Kind: token.INT, Value: "2"},
+				Op: token.EQL,
+			},
+			&ast.BinaryExpr{
+				X:  &ast.BasicLit{Kind: token.INT, Value: "1"},
+				Y:  &ast.BasicLit{Kind: token.INT, Value: "2"},
+				Op: token.NEQ,
+			},
+		},
+		"binary !=": {
+			&ast.BinaryExpr{
+				X:  &ast.BasicLit{Kind: token.INT, Value: "1"},
+				Y:  &ast.BasicLit{Kind: token.INT, Value: "2"},
+				Op: token.NEQ,
+			},
+			&ast.BinaryExpr{
+				X:  &ast.BasicLit{Kind: token.INT, Value: "1"},
+				Y:  &ast.BasicLit{Kind: token.INT, Value: "2"},
+				Op: token.EQL,
+			},
+		},
+		"binary >": {
+			&ast.BinaryExpr{
+				X:  &ast.BasicLit{Kind: token.INT, Value: "1"},
+				Y:  &ast.BasicLit{Kind: token.INT, Value: "2"},
+				Op: token.GTR,
+			},
+			&ast.BinaryExpr{
+				X:  &ast.BasicLit{Kind: token.INT, Value: "1"},
+				Y:  &ast.BasicLit{Kind: token.INT, Value: "2"},
+				Op: token.LEQ,
+			},
+		},
+		"binary <": {
+			&ast.BinaryExpr{
+				X:  &ast.BasicLit{Kind: token.INT, Value: "1"},
+				Y:  &ast.BasicLit{Kind: token.INT, Value: "2"},
+				Op: token.LSS,
+			},
+			&ast.BinaryExpr{
+				X:  &ast.BasicLit{Kind: token.INT, Value: "1"},
+				Y:  &ast.BasicLit{Kind: token.INT, Value: "2"},
+				Op: token.GEQ,
+			},
+		},
+		"binary >=": {
+			&ast.BinaryExpr{
+				X:  &ast.BasicLit{Kind: token.INT, Value: "1"},
+				Y:  &ast.BasicLit{Kind: token.INT, Value: "2"},
+				Op: token.GEQ,
+			},
+			&ast.BinaryExpr{
+				X:  &ast.BasicLit{Kind: token.INT, Value: "1"},
+				Y:  &ast.BasicLit{Kind: token.INT, Value: "2"},
+				Op: token.LSS,
+			},
+		},
+		"binary <=": {
+			&ast.BinaryExpr{
+				X:  &ast.BasicLit{Kind: token.INT, Value: "1"},
+				Y:  &ast.BasicLit{Kind: token.INT, Value: "2"},
+				Op: token.LEQ,
+			},
+			&ast.BinaryExpr{
+				X:  &ast.BasicLit{Kind: token.INT, Value: "1"},
+				Y:  &ast.BasicLit{Kind: token.INT, Value: "2"},
+				Op: token.GTR,
+			},
+		},
+		"unary !": {
+			&ast.UnaryExpr{
+				X:  &ast.BasicLit{Kind: token.INT, Value: "1"},
+				Op: token.NOT,
+			},
+			&ast.BasicLit{Kind: token.INT, Value: "1"},
+		},
+		"ident": {
+			dummyIdent,
+			&ast.UnaryExpr{
+				X:  dummyIdent,
+				Op: token.NOT,
+			},
+		},
+		"paren": {
+			&ast.ParenExpr{
+				X: &ast.BasicLit{Kind: token.INT, Value: "1"},
+			},
+			&ast.UnaryExpr{
+				X: &ast.ParenExpr{
+					X: &ast.BasicLit{Kind: token.INT, Value: "1"},
+				},
+				Op: token.NOT,
+			},
+		},
+		"default": {
+			&ast.BasicLit{Kind: token.INT, Value: "1"},
+			&ast.UnaryExpr{
+				X: &ast.ParenExpr{
+					X: &ast.BasicLit{Kind: token.INT, Value: "1"},
+				},
+				Op: token.NOT,
+			},
+		},
+	}
+	for name, test := range tests {
+		if !m.Match(Invert(test.Input), test.Expected) {
+			t.Fatalf("Failed inverting %s", name)
+		}
+	}
+}
+
+func TestChanType(t *testing.T) {
+	multi(t, map[string]string{
+		"chan type": `package a
+		
+			type T chan int // *1
+			
+			func foo() {
+				type A int
+				type B chan bool
+				type C chan int // #1
+			}
+		`,
+	})
+}
+
+func TestMapType(t *testing.T) {
+	multi(t, map[string]string{
+		"map type": `package a
+		
+			type T map[string]int // *1
+			
+			func foo() {
+				type A map[string]string
+				type B map[int]string
+				type C map[string]int // #1
+			}
+		`,
+	})
+}
+
+func TestArrayType(t *testing.T) {
+	multi(t, map[string]string{
+		"array type": `package a
+		
+			type T []string // *1
+			type T1 [1]int // *2
+			
+			func foo() {
+				type A []int
+				type C [1]string
+				type D []string // #1
+				type E [1]int // #2
+			}
+		`,
+	})
+}
+
+func TestCompositeLit(t *testing.T) {
+	multi(t, map[string]string{
+		"composite literal": `package a
+		
+			type T struct {
+				a string
+			}
+			var _ = T{a:"b"} // *1
+			var _ = T{"c"} // *2
+			
+			func foo() {
+				_ = T{}
+				_ = T{a:"a"}
+				_ = T{a:"b"} // #1
+				_ = T{a:"c"}
+				_ = T{"b"}
+				_ = T{"c"} // #2
+			}
+		`,
+	})
+}
+
+func TestBinary(t *testing.T) {
+	multi(t, map[string]string{
+		"binary": `package a
+		
+			var a, b int
+			var _ = a == b // *1
+			var _ = a > b // *2
+			var _ = a == 2 // *3
+			
+			func foo() {
+				_ = a
+				_ = b
+				_ = a < b
+				_ = b == a
+				_ = b > a
+				_ = a == b // #1
+				_ = a > b // #2
+				_ = a == 2 // #3
+			}
+		`,
+	})
+}
+
+func TestUnary(t *testing.T) {
+	multi(t, map[string]string{
+		"unary": `package a
+		
+			var a int
+			var _ = +a // *1
+			var b bool
+			var _ = !b // *2
+			
+			func foo() {
+				_ = a
+				_ = -a
+				_ = +a // #1
+				_ = b
+				_ = !b // #2
+			}
+		`,
+	})
+}
+
+func TestStar(t *testing.T) {
+	multi(t, map[string]string{
+		"star": `package a
+		
+			type T struct{}
+			var a = &T{}
+			var _ = *a // *1
+			
+			func foo() {
+				_ = a
+				_ = *a // #1
+			}
+		`,
+	})
+}
+
+func TestTypeAssert(t *testing.T) {
+	multi(t, map[string]string{
+		"type assert": `package a
+		
+			var a interface{}
+			var _ = a.(int) // *1
+			
+			func foo() {
+				_ = a
+				_ = a.(bool)
+				_ = a.(int) // #1
+			}
+		`,
+	})
+}
+
+func TestSlice(t *testing.T) {
+	multi(t, map[string]string{
+		"slice": `package a
+		
+			var a []string
+			var b []string
+			var _ = a[2:3] // *1
+			var _ = a[2:3:5] // *2
+			
+			func foo() {
+				_ = a
+				_ = a[2:]
+				_ = a[:3]
+				_ = a[1:3]
+				_ = a[2:3:4]
+				_ = a[2:3:5] // #2
+				_ = b[2:3]
+				_ = a[2:3] // #1
+			}
+		`,
+	})
+}
+
+func TestIndex(t *testing.T) {
+	multi(t, map[string]string{
+		"index": `package a
+		
+			var a []string
+			var _ = a[2] // *1
+			
+			func foo() {
+				_ = a
+				_ = a[2] // #1
+				_ = a[1]
+			}
+		`,
+	})
+}
+
+func TestParen(t *testing.T) {
+	multi(t, map[string]string{
+		"parens": `package a
+		
+			var _ = (1) // *1
+			
+			func foo() {
+				_ = 1
+				_ = (2)
+				_ = (1) // #1
+			}
+		`,
+	})
+}
 
 func TestCall(t *testing.T) {
 	multi(t, map[string]string{
@@ -98,7 +429,7 @@ func TestSimple(t *testing.T) {
 				return i
 			}
 		`,
-		"basic lit bool": `package a
+		"basic lit bool false": `package a
 		
 			var _ = false // *1
 			
@@ -106,6 +437,18 @@ func TestSimple(t *testing.T) {
 				i := true
 				if i {
 					i = false // #1
+				}
+				return i
+			}
+		`,
+		"basic lit bool true": `package a
+		
+			var _ = true // *1
+			
+			func foo() bool {
+				i := false
+				if i {
+					i = true // #1
 				}
 				return i
 			}

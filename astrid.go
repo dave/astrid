@@ -1,4 +1,4 @@
-// package astrid is a collection of AST utilities
+// Package astrid is a collection of AST utilities
 package astrid
 
 //go:generate go get github.com/dave/rebecca/cmd/becca
@@ -168,7 +168,7 @@ func (m *Matcher) Match(a, b ast.Expr) bool {
 	return false
 }
 
-// Match determines whether two slices of ast.Expr's are equivalent
+// MatchSlice determines whether two slices of ast.Expr's are equivalent
 func (m *Matcher) MatchSlice(a, b []ast.Expr) bool {
 	if len(a) != len(b) {
 		return false
